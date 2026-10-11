@@ -9,10 +9,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIntValidator
 from PySide6.QtWidgets import (
-    QAbstractSpinBox, QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout,
+    QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QMainWindow, QMessageBox, QProgressBar,
-    QPushButton, QSpinBox, QSizePolicy, QStackedWidget,
+    QPushButton, QSizePolicy, QStackedWidget,
     QTextEdit, QVBoxLayout, QWidget,
 )
 
@@ -116,6 +117,37 @@ def make_candidate(length, keyword=None, letters_only=False):
         return ("".join(random.choices(chars, k=split)) + keyword +
                 "".join(random.choices(chars, k=remaining - split)))
     return "".join(random.choices(chars, k=length))
+
+
+class IntegerInput(QLineEdit):
+    """A keyboard-only integer field with consistent QLineEdit rendering."""
+
+    def __init__(self, minimum, maximum, value, parent=None):
+        super().__init__(parent)
+        self.minimum_value = minimum
+        self.maximum_value = maximum
+        self.validator = QIntValidator(minimum, maximum, self)
+        self.setValidator(self.validator)
+        self.setValue(value)
+
+    def value(self):
+        try:
+            return max(self.minimum_value, min(self.maximum_value, int(self.text())))
+        except ValueError:
+            return self.minimum_value
+
+    def setRange(self, minimum, maximum):
+        self.minimum_value = minimum
+        self.maximum_value = maximum
+        self.validator.setRange(minimum, maximum)
+        self.setValue(self.value())
+
+    def setMaximum(self, maximum):
+        self.setRange(self.minimum_value, maximum)
+
+    def setValue(self, value):
+        value = max(self.minimum_value, min(self.maximum_value, int(value)))
+        self.setText(str(value))
 
 
 class LuxzApp(QMainWindow):
@@ -263,10 +295,10 @@ class LuxzApp(QMainWindow):
             QPushButton#NavButton {{ text-align: left; background: transparent; border: 1px solid transparent; padding: 11px 12px; border-radius: 9px; color: #b1b1b1; }}
             QPushButton#NavButton:hover {{ color: white; background: #171717; }}
             QPushButton#NavButton:checked {{ color: white; background: #242424; border: 1px solid #414141; }}
-            QLineEdit, QComboBox, QSpinBox, QTextEdit, QListWidget {{ background: {INPUT}; border: 1px solid {BORDER}; border-radius: 9px; selection-background-color: #555555; }}
-            QLineEdit, QComboBox, QSpinBox {{ min-height: 40px; padding: 0 11px; }}
+            QLineEdit, QComboBox, QTextEdit, QListWidget {{ background: {INPUT}; border: 1px solid {BORDER}; border-radius: 9px; selection-background-color: #555555; }}
+            QLineEdit, QComboBox {{ min-height: 40px; padding: 0 11px; }}
             QTextEdit {{ padding: 9px 11px; }}
-            QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QTextEdit:focus {{ border: 1px solid #666666; }}
+            QLineEdit:focus, QComboBox:focus, QTextEdit:focus {{ border: 1px solid #666666; }}
             QComboBox::drop-down {{ border: 0; width: 28px; }}
             QComboBox QAbstractItemView {{ background: #171717; border: 1px solid #393939; selection-background-color: #393939; }}
             QCheckBox, QRadioButton {{ spacing: 8px; color: #dedede; }}
@@ -444,17 +476,11 @@ class LuxzApp(QMainWindow):
         length_layout.setContentsMargins(0, 0, 0, 0)
         length_layout.setSpacing(5)
         length_layout.addWidget(self._label("Name length"))
-        self.gen_length = QSpinBox()
-        self.gen_length.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.gen_length.setRange(2, 32)
-        self.gen_length.setValue(4)
+        self.gen_length = IntegerInput(2, 32, 4)
         length_layout.addWidget(self.gen_length)
         count_column = QVBoxLayout()
         count_column.addWidget(self._label("Number of names"))
-        self.gen_count = QSpinBox()
-        self.gen_count.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.gen_count.setRange(1, 50000)
-        self.gen_count.setValue(50)
+        self.gen_count = IntegerInput(1, 50000, 50)
         count_column.addWidget(self.gen_count)
         length_count.addWidget(self.length_column, 1)
         length_count.addLayout(count_column, 1)
@@ -476,10 +502,7 @@ class LuxzApp(QMainWindow):
         thread_row = QHBoxLayout()
         thread_row.addWidget(self._label("Generation speed"))
         thread_row.addStretch(1)
-        self.thread_spin = QSpinBox()
-        self.thread_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.thread_spin.setRange(1, 10)
-        self.thread_spin.setValue(2)
+        self.thread_spin = IntegerInput(1, 10, 2)
         self.thread_spin.setFixedWidth(100)
         thread_row.addWidget(self.thread_spin)
         form.addLayout(thread_row)
